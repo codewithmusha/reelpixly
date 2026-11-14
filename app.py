@@ -43,6 +43,63 @@ lock = threading.RLock()
 executor = ThreadPoolExecutor(max_workers=MAX_ACTIVE)
 jobs: dict[str, dict] = {}
 rate_events: dict[str, deque] = defaultdict(deque)
+# Instagram's 429 response is a provider-side restriction, not a problem to retry rapidly.
+# These controls protect the public demo from creating unnecessary repeat requests.
+INSTAGRAM_COOLDOWN_SECONDS = 15 * 60
+PREVIEW_CACHE_SECONDS = 5 * 60
+instagram_cooldown_until = 0.0  # monotonic clock
+preview_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+
+
+def instagram_rate_limited(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return '429' in message or 'too many requests' in message or 'rate limit' in message
+
+
+def mark_instagram_rate_limited(exc: Exception) -> bool:
+    global instagram_cooldown_until
+    if not instagram_rate_limited(exc):
+        return False
+    with lock:
+        instagram_cooldown_until = max(
+            instagram_cooldown_until,
+            time.monotonic() + INSTAGRAM_COOLDOWN_SECONDS,
+        )
+        preview_cache.clear()
+    logger.warning('Instagram returned a rate limit; pausing new extraction attempts on this service.')
+    return True
+
+
+def check_instagram_cooldown() -> None:
+    with lock:
+        remaining = instagram_cooldown_until - time.monotonic()
+    if remaining > 0:
+        raise HTTPException(
+            status_code=503,
+            detail='Instagram is temporarily rate-limiting this server. '
+                   'Downloads and previews are paused to avoid repeated requests. Try again later.',
+        )
+
+
+def cached_preview(url: str, mode: str) -> dict | None:
+    now = time.monotonic()
+    with lock:
+        cached = preview_cache.get((url, mode))
+        if cached and cached[0] > now:
+            return dict(cached[1])
+        if cached:
+            preview_cache.pop((url, mode), None)
+    return None
+
+
+def store_preview(url: str, mode: str, item: dict) -> None:
+    if not item.get('details_available'):
+        return
+    with lock:
+        if len(preview_cache) >= 100:
+            preview_cache.clear()  # simple bounded best-effort cache for one free instance
+        preview_cache[(url, mode)] = (time.monotonic() + PREVIEW_CACHE_SECONDS, dict(item))
+
 
 PAGES = {
     'home': {
@@ -383,7 +440,7 @@ def save_media(url: str, destination: Path, used: list[int]):
 
 def instagram_post_download(shortcode: str, folder: Path, mode: str, job_id: str):
     """Public post photos/carousels via Instaloader; may be blocked by Instagram."""
-    loader = instaloader.Instaloader(quiet=True, sleep=False, download_pictures=False,
+    loader = instaloader.Instaloader(quiet=True, sleep=True, max_connection_attempts=1, fatal_status_codes=[429], download_pictures=False,
                                     download_videos=False, download_video_thumbnails=False,
                                     save_metadata=False)
     post = instaloader.Post.from_shortcode(loader.context, shortcode)
@@ -416,7 +473,7 @@ def instagram_post_download(shortcode: str, folder: Path, mode: str, job_id: str
 
 
 def profile_download(username: str, folder: Path):
-    loader = instaloader.Instaloader(quiet=True, sleep=False, download_pictures=False,
+    loader = instaloader.Instaloader(quiet=True, sleep=True, max_connection_attempts=1, fatal_status_codes=[429], download_pictures=False,
                                     download_videos=False, download_video_thumbnails=False,
                                     save_metadata=False)
     profile = instaloader.Profile.from_username(loader.context, username)
@@ -440,6 +497,8 @@ def run_job(job_id: str, url: str, kind: str, identifier: str, mode: str):
             try:
                 yt_video_download(url, folder, job_id)
             except Exception as first:
+                if instagram_rate_limited(first):
+                    raise  # Do not generate another request after provider 429
                 logger.info('yt-dlp unavailable for this video; trying public post metadata: %s', first)
                 instagram_post_download(identifier, folder, mode, job_id)
         else:
@@ -447,7 +506,7 @@ def run_job(job_id: str, url: str, kind: str, identifier: str, mode: str):
             try:
                 instagram_post_download(identifier, folder, mode, job_id)
             except Exception as first:
-                if mode != 'auto':
+                if instagram_rate_limited(first) or mode != 'auto':
                     raise
                 logger.info('Post metadata unavailable; attempting video fallback: %s', first)
                 yt_video_download(url, folder, job_id)
@@ -464,6 +523,7 @@ def run_job(job_id: str, url: str, kind: str, identifier: str, mode: str):
         update(job_id, status='ready', path=str(result), filename=result.name,
                size=result.stat().st_size, progress=100)
     except Exception as exc:
+        mark_instagram_rate_limited(exc)
         logger.warning('Instagram download failed [mode=%s]: %s',mode,str(exc)[:300])
         update(job_id, status='error', error=clean_error(exc))
         shutil.rmtree(folder, ignore_errors=True)
@@ -517,10 +577,14 @@ def preview(payload: DownloadRequest, request: Request):
     url, kind, identifier = validate_url(payload.url)
     mode = payload.mode
     validate_download_mode(kind, mode)
+    check_instagram_cooldown()
+    previously = cached_preview(url, mode)
+    if previously:
+        return previously
     item = basic_preview(kind, mode, identifier)
     try:
         if kind == 'profile':
-            loader = instaloader.Instaloader(quiet=True, sleep=False,
+            loader = instaloader.Instaloader(quiet=True, sleep=True, max_connection_attempts=1, fatal_status_codes=[429],
                                             download_pictures=False, download_videos=False,
                                             download_video_thumbnails=False, save_metadata=False)
             profile = instaloader.Profile.from_username(loader.context, identifier)
@@ -531,7 +595,7 @@ def preview(payload: DownloadRequest, request: Request):
         elif kind == 'post':
             # Instaloader includes previews for photo posts, videos, and carousels.
             try:
-                loader = instaloader.Instaloader(quiet=True, sleep=False,
+                loader = instaloader.Instaloader(quiet=True, sleep=True, max_connection_attempts=1, fatal_status_codes=[429],
                                                 download_pictures=False, download_videos=False,
                                                 download_video_thumbnails=False, save_metadata=False)
                 post = instaloader.Post.from_shortcode(loader.context, identifier)
@@ -542,7 +606,9 @@ def preview(payload: DownloadRequest, request: Request):
                             thumbnail=safe_preview_image(str(post.url)),
                             count=count, details_available=True,
                             message='Cover image shown. Click Download to save the available file.')
-            except Exception:
+            except Exception as first:
+                if instagram_rate_limited(first):
+                    raise  # Stop immediately; do not try another extractor after 429
                 # Alternate metadata lookup for public video/Reel links.
                 with YoutubeDL({'quiet': True, 'no_warnings': True, 'noplaylist': True,
                                 'cachedir': False, 'socket_timeout': 12, 'retries': 0,
@@ -556,7 +622,23 @@ def preview(payload: DownloadRequest, request: Request):
                                 message='Cover image shown. Click Download to save the available file.')
         # Anonymous Story / Highlight metadata is commonly login-protected.
     except Exception as exc:
+        if mark_instagram_rate_limited(exc):
+            raise HTTPException(
+                status_code=503,
+                detail='Instagram is temporarily limiting this server. Preview unavailable; please try again later.',
+            ) from None
         logger.info('Preview metadata unavailable: %s', str(exc)[:160])
+        # Keep honest about real thumbnails: a generic card is not an actual preview.
+        raise HTTPException(
+            status_code=502,
+            detail='A real Instagram preview could not be retrieved for this link. No download started.',
+        ) from None
+    if not item.get('details_available'):
+        raise HTTPException(
+            status_code=422,
+            detail='A real preview is not available for this content without authorised Instagram access.',
+        )
+    store_preview(url, mode, item)
     return item
 
 
@@ -566,6 +648,7 @@ def download(payload: DownloadRequest, request: Request):
     url, kind, identifier = validate_url(payload.url)
     mode = payload.mode
     validate_download_mode(kind, mode)
+    check_instagram_cooldown()
     cleanup()
     with lock:
         active = sum(1 for j in jobs.values() if j['status'] not in {'ready','error'})
