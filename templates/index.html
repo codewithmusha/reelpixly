@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=1.0.0">
+  <link rel="stylesheet" href="/static/styles.css?v=1.1.0">
   <script>
     try { document.documentElement.dataset.theme = localStorage.getItem('reelpixly-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (_) {}
   </script>
@@ -56,7 +56,7 @@
         <h1 id="hero-title">{% if page_key == 'home' %}Download your <span class="hero-accent">Instagram moments.</span>{% else %}{{ page.heading }}<span class="title-dot">.</span>{% endif %}</h1>
         <p class="hero-description">{{ page.lead }}</p>
         <div class="downloader" id="download-panel">
-          <div class="downloader-header"><span class="status-pip"></span> Paste a link. Get your file. <span class="demo-pill">NO PREVIEW NEEDED</span></div>
+          <div class="downloader-header"><span class="status-pip"></span> Paste a link. Preview, then save. <span class="demo-pill">PREVIEW FIRST</span></div>
           <form id="download-form" novalidate>
             <input type="hidden" name="mode" value="{{ page.type }}">
             <label for="media-url" class="sr-only">Instagram URL to download</label>
@@ -65,8 +65,12 @@
               <input id="media-url" name="url" autocomplete="off" inputmode="url" spellcheck="false" type="url" placeholder="{{ page.placeholder }}" required>
               <button type="button" class="paste-btn" id="paste-button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="4" width="13" height="17" rx="2"/><path d="M4 17H3a1 1 0 0 1-1-1V4a2 2 0 0 1 2-2h11a1 1 0 0 1 1 1v1"/></svg> Paste</button>
             </div>
-            <button type="submit" class="download-btn" id="download-button"><span class="button-icon">↓</span> <span id="button-label">Download Now</span> <span aria-hidden="true">↗</span></button>
+            <button type="submit" class="download-btn" id="download-button"><span class="button-icon">↓</span> <span id="button-label">Show Preview</span> <span aria-hidden="true">↗</span></button>
           </form>
+          <section id="media-preview" class="media-preview" aria-label="Instagram content preview" hidden>
+            <div class="preview-cover" id="preview-cover"><span id="preview-placeholder" aria-hidden="true">▶</span><img id="preview-image" alt="Instagram post cover preview" hidden referrerpolicy="no-referrer"></div>
+            <div class="preview-info"><p class="preview-kicker">CONTENT PREVIEW</p><h3 id="preview-title">Instagram post</h3><p id="preview-type" class="preview-kind">Instagram media</p><p id="preview-note" class="preview-note">Click Download to save authorised content.</p><button type="button" class="download-btn preview-download-btn" id="confirm-download"><span class="button-icon">↓</span> Download this file</button></div>
+          </section>
           <div id="download-status" class="download-status" role="status" aria-live="polite" hidden></div>
           <p class="download-disclaimer">Only save content you own or are allowed to download. <span aria-hidden="true">•</span> Public, accessible links only.</p>
         </div>
@@ -101,7 +105,7 @@
 
     <section class="section how-section" id="how-it-works">
       <div class="shell">
-        <div class="section-heading centered"><div><div class="section-kicker">JUST THREE STEPS</div><h2>Save it in <em>seconds.</em></h2></div><p>Simple from start to finish. No extra preview screen.</p></div>
+        <div class="section-heading centered"><div><div class="section-kicker">JUST THREE STEPS</div><h2>Save it in <em>seconds.</em></h2></div><p>Paste your link, check the preview, then choose to download.</p></div>
         <div class="steps-grid">
           <article class="step"><div class="step-number">01</div><div class="step-icon">↗</div><h3>Copy the link</h3><p>Open Instagram and copy the link to content you are allowed to save.</p></article>
           <article class="step"><div class="step-number">02</div><div class="step-icon">⌁</div><h3>Paste it here</h3><p>Drop the URL into ReelPixly’s simple download box.</p></article>
@@ -121,6 +125,6 @@
   </main>
 
   <footer class="footer"><div class="shell"><div class="footer-top"><div><a href="/" class="logo footer-logo"><span class="logo-mark">↧</span><span>Reel<span class="logo-second">Pixly</span><small class="logo-period">.</small></span></a><p>A simple home for the Instagram content you are authorised to save.</p></div><div class="footer-links"><a href="/instagram-reels-downloader">Reels</a><a href="/instagram-photo-downloader">Photos</a><a href="/instagram-carousel-downloader">Carousel</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></div><div class="footer-bottom"><span>© 2026 ReelPixly. Independent tool, not affiliated with Instagram or Meta.</span><span>Built for a simpler download experience ✦</span></div></div></footer>
-  <script defer src="/static/app.js?v=1.0.0"></script>
+  <script defer src="/static/app.js?v=1.1.0"></script>
 </body>
 </html>
