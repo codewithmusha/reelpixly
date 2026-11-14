@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ page.title }}</title>
+  <meta name="description" content="{{ page.description }}">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <link rel="canonical" href="{{ canonical }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ReelPixly">
+  <meta property="og:title" content="{{ page.title }}">
+  <meta property="og:description" content="{{ page.description }}">
+  <meta property="og:url" content="{{ canonical }}">
+  <meta name="theme-color" content="#6927c1">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css?v=1.0.0">
+  <script>
+    try { document.documentElement.dataset.theme = localStorage.getItem('reelpixly-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (_) {}
+  </script>
+  <script type="application/ld+json">{{ {'@context':'https://schema.org','@type':'WebApplication','name':'ReelPixly','applicationCategory':'MultimediaApplication','operatingSystem':'Any','url':canonical,'description':page.description,'offers':{'@type':'Offer','price':'0','priceCurrency':'USD'}} | tojson }}</script>
+  {% if page.faq %}<script type="application/ld+json">{{ faq_schema | tojson }}</script>{% endif %}
+</head>
+<body data-mode="{{ page.type }}">
+  <div class="announcement"><span class="ann-dot"></span> Free test version <span class="ann-sep">•</span> Instagram-only downloader <span class="ann-sep">•</span> No sign-up</div>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a href="/" class="logo" aria-label="ReelPixly home"><span class="logo-mark">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="m10 8 6 4-6 4V8Z" fill="currentColor" stroke="none"/></svg>
+      </span><span>Reel<span class="logo-second">Pixly</span><small class="logo-period">.</small></span></a>
+      <nav class="primary-nav" aria-label="Main navigation">
+        <a href="/" {% if page_key == 'home' %}class="active" aria-current="page"{% endif %}>Home</a>
+        <a href="/instagram-reels-downloader" {% if page_key == 'reels' %}class="active" aria-current="page"{% endif %}>Reels</a>
+        <a href="/instagram-video-downloader" {% if page_key == 'video' %}class="active" aria-current="page"{% endif %}>Videos</a>
+        <a href="/instagram-photo-downloader" {% if page_key == 'photo' %}class="active" aria-current="page"{% endif %}>Photos</a>
+        <a href="/instagram-story-downloader" {% if page_key == 'story' %}class="active" aria-current="page"{% endif %}>Stories</a>
+      </nav>
+      <div class="header-actions">
+        <button class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme" title="Switch theme">
+          <svg class="sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.5 14.1A9 9 0 0 1 9.9 3.5a9 9 0 1 0 10.6 10.6Z"/></svg>
+        </button>
+        <a href="#all-tools" class="nav-cta">All tools <span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-glow hero-glow-left"></div><div class="hero-glow hero-glow-right"></div>
+      <div class="shell hero-inner">
+        <div class="hero-eyebrow"><span class="eyebrow-spark">✦</span> THE SIMPLE INSTAGRAM DOWNLOAD TOOL <span class="eyebrow-spark">✦</span></div>
+        <h1 id="hero-title">{% if page_key == 'home' %}Download your <span class="hero-accent">Instagram moments.</span>{% else %}{{ page.heading }}<span class="title-dot">.</span>{% endif %}</h1>
+        <p class="hero-description">{{ page.lead }}</p>
+        <div class="downloader" id="download-panel">
+          <div class="downloader-header"><span class="status-pip"></span> Paste a link. Get your file. <span class="demo-pill">NO PREVIEW NEEDED</span></div>
+          <form id="download-form" novalidate>
+            <input type="hidden" name="mode" value="{{ page.type }}">
+            <label for="media-url" class="sr-only">Instagram URL to download</label>
+            <div class="form-row">
+              <span class="url-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 1 0-7.1-7.1L11 4.9"/><path d="M14 11a5 5 0 0 0-7.1 0l-2.1 2.1a5 5 0 1 0 7.1 7.1l1.1-1.1"/></svg></span>
+              <input id="media-url" name="url" autocomplete="off" inputmode="url" spellcheck="false" type="url" placeholder="{{ page.placeholder }}" required>
+              <button type="button" class="paste-btn" id="paste-button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="4" width="13" height="17" rx="2"/><path d="M4 17H3a1 1 0 0 1-1-1V4a2 2 0 0 1 2-2h11a1 1 0 0 1 1 1v1"/></svg> Paste</button>
+            </div>
+            <button type="submit" class="download-btn" id="download-button"><span class="button-icon">↓</span> <span id="button-label">Download Now</span> <span aria-hidden="true">↗</span></button>
+          </form>
+          <div id="download-status" class="download-status" role="status" aria-live="polite" hidden></div>
+          <p class="download-disclaimer">Only save content you own or are allowed to download. <span aria-hidden="true">•</span> Public, accessible links only.</p>
+        </div>
+        <div class="quick-nav" aria-label="Quick downloader links">
+          <span class="quick-label">Quick access</span>
+          <a href="/instagram-reels-downloader">▶ Reels</a>
+          <a href="/instagram-video-downloader">▣ Videos</a>
+          <a href="/instagram-photo-downloader">▧ Photos</a>
+          <a href="/instagram-carousel-downloader">▦ Carousels</a>
+          <a href="/instagram-profile-picture-downloader">◉ Profile DP</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="all-tools" class="section section-tools shell" aria-labelledby="all-tools-title">
+      <div class="section-heading">
+        <div><div class="section-kicker">ALL THE TOOLS, ONE PLACE</div><h2 id="all-tools-title">Choose what you want to <em>save.</em></h2></div>
+        <p>Every Instagram format has its own easy-to-use page. No clutter, just the essentials.</p>
+      </div>
+      <div class="tools-grid">
+        {% for key in ['reels','video','photo','carousel','story','highlight','dp','live'] %}
+        {% set item = pages[key] %}
+        <a class="tool-card{% if key == page_key %} current{% endif %}" href="{{ item.path }}">
+          <div class="tool-icon icon-{{ key }}" aria-hidden="true">{{ item.icon }}</div>
+          <div class="tool-content"><h3>{% if key == 'dp' %}Profile Picture{% elif key == 'live' %}Saved Live{% elif key == 'reels' %}Reels{% elif key == 'carousel' %}Carousel{% elif key == 'story' %}Stories{% elif key == 'highlight' %}Highlights{% elif key == 'photo' %}Photos{% else %}Videos{% endif %} <span>Downloader</span></h3>
+            <p>{% if key == 'reels' %}Save accessible Reel videos{% elif key == 'video' %}Download public video posts{% elif key == 'photo' %}Save photo posts as images{% elif key == 'carousel' %}Save multi-media posts as ZIP{% elif key == 'story' %}Login restrictions may apply{% elif key == 'highlight' %}Login restrictions may apply{% elif key == 'dp' %}Save accessible profile photos{% else %}Saved replay posts only{% endif %}</p></div>
+          <span class="tool-arrow" aria-hidden="true">↗</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="section how-section" id="how-it-works">
+      <div class="shell">
+        <div class="section-heading centered"><div><div class="section-kicker">JUST THREE STEPS</div><h2>Save it in <em>seconds.</em></h2></div><p>Simple from start to finish. No extra preview screen.</p></div>
+        <div class="steps-grid">
+          <article class="step"><div class="step-number">01</div><div class="step-icon">↗</div><h3>Copy the link</h3><p>Open Instagram and copy the link to content you are allowed to save.</p></article>
+          <article class="step"><div class="step-number">02</div><div class="step-icon">⌁</div><h3>Paste it here</h3><p>Drop the URL into ReelPixly’s simple download box.</p></article>
+          <article class="step"><div class="step-number">03</div><div class="step-icon">↓</div><h3>Download</h3><p>When the content is accessible, your file downloads automatically.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section shell feature-section">
+      <div class="feature-panel"><div class="feature-copy"><div class="section-kicker">MADE FOR THE EVERYDAY CREATOR</div><h2>Less clicking.<br><em>More creating.</em></h2><p>No cluttered menus. No unnecessary steps. Just a focused place to save content you have the rights to use.</p><div class="feature-tags"><span>◉ Mobile-friendly</span><span>✧ Clean interface</span><span>☾ Light & dark mode</span></div></div><div class="feature-art" aria-hidden="true"><div class="art-orb"></div><div class="floating-card one"><span>▣</span> Video link <b>✓</b></div><div class="floating-card two"><span>↓</span> Your download <b>Ready</b></div><div class="floating-icon">✦</div></div></div>
+    </section>
+
+    <section class="section faq-section shell" id="faq"><div class="section-heading centered"><div><div class="section-kicker">GOOD TO KNOW</div><h2>Frequently asked <em>questions.</em></h2></div></div>
+      <div class="faq-list">{% for question, answer in page.faq %}<details class="faq-item" {% if loop.first %}open{% endif %}><summary>{{ question }}<span class="faq-plus">+</span></summary><p>{{ answer }}</p></details>{% endfor %}</div>
+      <div class="notice"><span class="notice-icon">i</span><p><strong>About access:</strong> ReelPixly is independent of Instagram or Meta. Public links can still be restricted. Stories and Highlights commonly require login and often fail in anonymous mode; active Live streams are not supported. We never ask for your Instagram password or cookies.</p></div>
+    </section>
+  </main>
+
+  <footer class="footer"><div class="shell"><div class="footer-top"><div><a href="/" class="logo footer-logo"><span class="logo-mark">↧</span><span>Reel<span class="logo-second">Pixly</span><small class="logo-period">.</small></span></a><p>A simple home for the Instagram content you are authorised to save.</p></div><div class="footer-links"><a href="/instagram-reels-downloader">Reels</a><a href="/instagram-photo-downloader">Photos</a><a href="/instagram-carousel-downloader">Carousel</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></div><div class="footer-bottom"><span>© 2026 ReelPixly. Independent tool, not affiliated with Instagram or Meta.</span><span>Built for a simpler download experience ✦</span></div></div></footer>
+  <script defer src="/static/app.js?v=1.0.0"></script>
+</body>
+</html>

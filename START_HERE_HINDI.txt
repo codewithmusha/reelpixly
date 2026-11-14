@@ -1,0 +1,65 @@
+REELPIXLY - GITHUB + RENDER FREE SETUP (Hindi / Hinglish)
+=======================================================
+
+Sabse pehle: Purani ClipNest files ko bilkul change mat karna.
+Nayi GitHub Repository aur nayi Render Web Service banani hai.
+
+STEP 1 - ZIP ko download aur Extract karo.
+  ZIP ke andar 'ReelPixly' folder hoga. Us folder ke ANDAR ki saari
+  files aur folders GitHub mein upload karna, pura outer folder nahi.
+
+STEP 2 - GitHub par naya repository banao:
+  https://github.com/new
+  Repository Name: reelpixly
+  Visibility: Public
+  Create Repository -> 'uploading an existing file'
+  Extracted ReelPixly folder ki sabhi files upload karo.
+  'Commit changes' dabao.
+  GitHub root par Dockerfile, app.py, requirements.txt nazar aani chahiye.
+  'static', 'templates', 'tests' folders bhi root mein hone chahiye.
+
+STEP 3 - Render Dashboard:
+  https://dashboard.render.com/
+  + New -> Web Service -> GitHub repository 'reelpixly' -> Connect
+  Name: reelpixly (available na ho to reelpixly-test)
+  Language/Runtime: Docker
+  Branch: main
+  Root Directory: blank
+  Instance: FREE ($0/month) select karo.
+  Deploy Web Service dabao.
+
+STEP 4 - Deploy complete hone par:
+  Status 'Live' check karo, Render ka mila hua onrender.com URL kholo.
+  Light/Dark toggle, mobile screen, sabhi category pages check karo.
+  Reels aur public posts ke apne/authorised links se test karo.
+  Instagram server ke requests block kar sakta hai; guaranteed nahi hai.
+
+STEP 5 - Changes kaise karoge?
+  GitHub repo mein files update -> Commit changes -> Render automatically
+  redeploy karega (agar Auto Deploy ON hai).
+  Design: static/styles.css
+  Frontend function: static/app.js
+  Page titles/SEO: app.py, PAGES dictionary
+  HTML/layout: templates/index.html
+  Backend: app.py
+
+STEP 6 - Google Analytics / Domain (BAAD MEIN)
+  Domain abhi bilkul zaruri nahi; Render free URL testing ke liye kaafi hai.
+  Jab domain loge tab domain DNS Render par connect karna.
+  Render ke Environment tab mein PUBLIC_SITE_URL=https://yourdomain.com set karna,
+  jisse canonical URLs aur sitemap domain ke saath generate hon.
+  Google Analytics ko baad mein consent-aware setup ke saath add karna.
+  AdSense approval guaranteed nahi; content aur policy compliance zaruri.
+
+IMPORTANT LIMITS
+  - Reels/Videos: yt-dlp (public media if Instagram server allows)
+  - Photos/Carousels/Profile DP: Instaloader public metadata (availability may vary)
+  - Story/Highlights: sirf accessible public videos try honge; login chahiye to error aayega. Photo Stories unsupported
+  - Live: sirf saved recording as normal video post; ongoing Live nahin
+  - No private media / no credentials / no cookies / no protections bypass
+  - 120 MB maximum per download, 15 items, 2 simultaneous jobs, 18 requests
+    per hour per IP; temporary files expire after 10 minutes.
+  - Render Free idle hone par sleep ho sakta hai.
+  - No real Instagram download test is possible without deployed server access.
+
+HELP: Agar Download Error aaye, Render -> Logs ka screenshot lo.
