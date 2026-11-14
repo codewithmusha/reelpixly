@@ -49,7 +49,7 @@ PAGES = {
         'path': '/', 'label': 'All Downloads', 'icon': '✦',
         'title': 'Instagram Downloader – Reels, Videos, Photos & More | ReelPixly',
         'heading': 'Everything Instagram. One easy download.',
-        'description': 'Save Instagram Reels, videos and accessible public photos you own or have permission to download. Simple links, no preview step.',
+        'description': 'Save Instagram Reels, videos and accessible public photos you own or have permission to download. Preview first, then download when you are ready.',
         'lead': 'One simple place for Instagram Reels, videos, photos and more. Paste a permitted link and save it in a few clicks.',
         'type': 'auto', 'placeholder': 'Paste an Instagram Reel, post or profile link...',
         'faq': [('Is ReelPixly free to test?', 'Yes. This testing version runs on a free server with limits on size and downloads.'),
@@ -60,7 +60,7 @@ PAGES = {
         'path': '/instagram-reels-downloader', 'label': 'Reels', 'icon': '▶',
         'title': 'Instagram Reels Downloader – Save Reels Online | ReelPixly',
         'heading': 'Instagram Reels Downloader',
-        'description': 'Download accessible Instagram Reels you own or have permission to save. Paste a Reel link into ReelPixly and download without a preview step.',
+        'description': 'Download accessible Instagram Reels you own or have permission to save. Paste a Reel link into ReelPixly and preview the Reel first, then download when ready.',
         'lead': 'Save your favourite authorised Reel videos in a simple, clean download flow.',
         'type': 'reels', 'placeholder': 'https://www.instagram.com/reel/ABC123.../',
         'faq': [('How do I download an Instagram Reel?', 'Copy an accessible Reel URL, paste it above, then select Download.'),
@@ -83,7 +83,7 @@ PAGES = {
         'title': 'Instagram Photo Downloader – Download Images | ReelPixly',
         'heading': 'Instagram Photo Downloader',
         'description': 'Download accessible Instagram post photos you own or are authorised to save. Paste an Instagram photo post URL.',
-        'lead': 'Save accessible Instagram photo posts without screenshots or extra preview screens.',
+        'lead': 'Save accessible Instagram photo posts with a quick preview before saving.',
         'type': 'photo', 'placeholder': 'https://www.instagram.com/p/ABC123.../',
         'faq': [('How do I save an Instagram photo?', 'Copy the photo post link, paste it into the field and press Download.'),
                 ('Will every photo work?', 'No. Instagram may require login or restrict access; this site does not bypass those protections.'),
@@ -469,11 +469,34 @@ def run_job(job_id: str, url: str, kind: str, identifier: str, mode: str):
         shutil.rmtree(folder, ignore_errors=True)
 
 
-@app.post('/api/download', status_code=202)
-def download(payload: DownloadRequest, request: Request):
-    rate_limit(request)
-    url, kind, identifier = validate_url(payload.url)
-    mode = payload.mode
+# Preview only checks public media metadata. It must NEVER create a download job.
+# When Instagram blocks metadata, a clearly labelled basic URL card is shown,
+# so the user can still decide whether to try downloading permitted content.
+def safe_preview_image(url: str | None) -> str | None:
+    if not url or not isinstance(url, str):
+        return None
+    try:
+        parsed = urlparse(url)
+        host = (parsed.hostname or '').lower().rstrip('.')
+        allowed = ('fbcdn.net', 'cdninstagram.com', 'instagram.com')
+        if parsed.scheme == 'https' and parsed.port in (None, 443) and not parsed.username and not parsed.password and any(host == x or host.endswith('.' + x) for x in allowed):
+            return url
+    except ValueError:
+        pass
+    return None
+
+
+def basic_preview(kind: str, mode: str, identifier: str) -> dict:
+    labels = {'reels':'Reel', 'video':'Video', 'photo':'Photo', 'carousel':'Carousel',
+              'story':'Story', 'highlight':'Highlight', 'dp':'Profile photo',
+              'live':'Saved Live', 'auto':'Instagram post'}
+    label = ('Profile photo' if kind == 'profile' else labels.get(mode, 'Instagram post'))
+    return {'title': f'Instagram {label}', 'kind': label, 'thumbnail': None,
+            'count': None, 'details_available': False,
+            'message': 'Instagram did not provide a thumbnail for this link. You can still try downloading permitted content.'}
+
+
+def validate_download_mode(kind: str, mode: str) -> None:
     if mode not in {'auto','reels','video','photo','carousel','story','highlight','dp','live'}:
         raise HTTPException(400, 'Please choose a valid download type.')
     if mode in {'story','highlight'} and kind != mode:
@@ -486,6 +509,63 @@ def download(payload: DownloadRequest, request: Request):
         raise HTTPException(422, 'Paste a public Instagram profile URL for profile pictures.')
     if mode == 'live' and kind != 'post':
         raise HTTPException(422, 'Only saved Live recordings published as video posts are supported.')
+
+
+@app.post('/api/preview')
+def preview(payload: DownloadRequest, request: Request):
+    rate_limit(request)
+    url, kind, identifier = validate_url(payload.url)
+    mode = payload.mode
+    validate_download_mode(kind, mode)
+    item = basic_preview(kind, mode, identifier)
+    try:
+        if kind == 'profile':
+            loader = instaloader.Instaloader(quiet=True, sleep=False,
+                                            download_pictures=False, download_videos=False,
+                                            download_video_thumbnails=False, save_metadata=False)
+            profile = instaloader.Profile.from_username(loader.context, identifier)
+            item.update(title=f'@{profile.username}', kind='Profile photo',
+                        thumbnail=safe_preview_image(str(profile.profile_pic_url)),
+                        count=1, details_available=True,
+                        message='Public profile picture preview')
+        elif kind == 'post':
+            # Instaloader includes previews for photo posts, videos, and carousels.
+            try:
+                loader = instaloader.Instaloader(quiet=True, sleep=False,
+                                                download_pictures=False, download_videos=False,
+                                                download_video_thumbnails=False, save_metadata=False)
+                post = instaloader.Post.from_shortcode(loader.context, identifier)
+                count = int(post.mediacount) if post.typename == 'GraphSidecar' else 1
+                title = (post.caption or '').strip().splitlines()[0][:105] if post.caption else ''
+                post_kind = 'Carousel' if count > 1 else ('Video' if post.is_video else 'Photo')
+                item.update(title=title or f'Instagram {post_kind}', kind=post_kind,
+                            thumbnail=safe_preview_image(str(post.url)),
+                            count=count, details_available=True,
+                            message='Cover image shown. Click Download to save the available file.')
+            except Exception:
+                # Alternate metadata lookup for public video/Reel links.
+                with YoutubeDL({'quiet': True, 'no_warnings': True, 'noplaylist': True,
+                                'cachedir': False, 'socket_timeout': 12, 'retries': 0,
+                                'skip_download': True}) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                if info:
+                    title = str(info.get('title') or '').strip()[:105]
+                    item.update(title=title or 'Instagram video', kind='Reel / Video',
+                                thumbnail=safe_preview_image(info.get('thumbnail')),
+                                count=1, details_available=True,
+                                message='Cover image shown. Click Download to save the available file.')
+        # Anonymous Story / Highlight metadata is commonly login-protected.
+    except Exception as exc:
+        logger.info('Preview metadata unavailable: %s', str(exc)[:160])
+    return item
+
+
+@app.post('/api/download', status_code=202)
+def download(payload: DownloadRequest, request: Request):
+    rate_limit(request)
+    url, kind, identifier = validate_url(payload.url)
+    mode = payload.mode
+    validate_download_mode(kind, mode)
     cleanup()
     with lock:
         active = sum(1 for j in jobs.values() if j['status'] not in {'ready','error'})
